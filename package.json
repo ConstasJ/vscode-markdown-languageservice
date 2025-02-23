@@ -1,5 +1,5 @@
 {
-  "name": "vscode-markdown-languageservice",
+  "name": "@constasj/vscode-markdown-languageservice",
   "description": "Markdown language service",
   "version": "0.5.0-alpha.8",
   "author": "Microsoft Corporation",
