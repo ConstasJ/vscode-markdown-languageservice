@@ -124,7 +124,7 @@ export class MdFoldingProvider {
             const text = getLine(document, line);
             const indent = getIndentCount(text);
 
-            while (stack.length && indent <= stack[stack.length - 1].indent) {
+            while (stack.length && indent < stack[stack.length - 1].indent) {
                 const { startLine } = stack.pop()!;
                 if (line - startLine > 1) {
                     foldingRanges.push({ startLine, endLine: line - 1 });
