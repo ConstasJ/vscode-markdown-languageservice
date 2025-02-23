@@ -39,7 +39,8 @@ export class MdFoldingProvider {
 		const foldables = await Promise.all([
 			this.#getRegions(document, token),
 			this.#getHeaderFoldingRanges(document, token),
-			this.#getBlockFoldingRanges(document, token)
+			this.#getBlockFoldingRanges(document, token),
+			this.#getTabIndentFoldingRanges(document)
 		]);
 		const result = foldables.flat();
 		return result.length > rangeLimit ? result.slice(0, rangeLimit) : result;
@@ -114,6 +115,37 @@ export class MdFoldingProvider {
 			? lsp.FoldingRangeKind.Comment
 			: undefined;
 	}
+
+	async #getTabIndentFoldingRanges(document: ITextDocument): Promise<lsp.FoldingRange[]> {
+        const foldingRanges: lsp.FoldingRange[] = [];
+        const stack: Array<{ indent: number, startLine: number }> = [];
+        
+        for (let line = 0; line < document.lineCount; line++) {
+            const text = getLine(document, line);
+            const indent = getIndentCount(text);
+
+            while (stack.length && indent <= stack[stack.length - 1].indent) {
+                const { startLine } = stack.pop()!;
+                if (line - startLine > 1) {
+                    foldingRanges.push({ startLine, endLine: line - 1 });
+                }
+            }
+
+            const lastIndent = stack.length ? stack[stack.length - 1].indent : 0;
+            if (indent > lastIndent) {
+                stack.push({ indent, startLine: line > 0 ? line - 1 : line });
+            }
+        }
+
+        while (stack.length) {
+            const { startLine } = stack.pop()!;
+            if (document.lineCount - startLine > 1) {
+                foldingRanges.push({ startLine, endLine: document.lineCount - 1 });
+            }
+        }
+
+        return foldingRanges;
+    }
 }
 
 function isStartRegion(t: string) { return /^\s*<!--\s*#?region\b.*-->/.test(t); }
@@ -156,4 +188,21 @@ function isFoldableToken(token: Token): token is TokenWithMap {
 		default:
 			return false;
 	}
+}
+
+function getIndentCount(text: string): number {
+    let count = 0;
+    let i = 0;
+    while (i < text.length) {
+        if (text.startsWith('\t', i)) {
+            count++;
+            i++;
+        } else if (text.startsWith('    ', i)) {
+            count++;
+            i += 4;
+        } else {
+            break;
+        }
+    }
+    return count;
 }
